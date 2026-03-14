@@ -8,7 +8,7 @@ resource "aws_vpc" "main" {
     Name        = "${var.project_name}-vpc-${var.environment}"
     Environment = var.environment
   }
-}
+} 
 
 # Create Internet Gateway for public subnets
 resource "aws_internet_gateway" "main" {
@@ -54,7 +54,7 @@ resource "aws_subnet" "private" {
 
 # Elastic IP for NAT Gateway
 resource "aws_eip" "nat" {
-  count  = var.availability_zones
+  count  = length(var.public_subnet_cidrs)
   domain = "vpc"
 
   tags = {
@@ -67,7 +67,7 @@ resource "aws_eip" "nat" {
 
 # NAT Gateways (one per AZ for HA)
 resource "aws_nat_gateway" "main" {
-  count         = var.availability_zones
+  count  = length(var.public_subnet_cidrs)
   allocation_id = aws_eip.nat[count.index].id
   subnet_id     = aws_subnet.public[count.index].id
 
@@ -103,7 +103,7 @@ resource "aws_route_table_association" "public" {
 
 # Route tables for private subnets (one per AZ for HA)
 resource "aws_route_table" "private" {
-  count  = var.availability_zones
+  count  = length(var.private_subnet_cidrs)
   vpc_id = aws_vpc.main.id
 
   route {

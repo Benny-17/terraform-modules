@@ -7,12 +7,13 @@ variable "vpc_cidr" {
 variable "environment" {
   description = "Environment name (dev/prod)"
   type        = string
+  # default = "dev" # NO default - gets from module call
 }
 
 variable "project_name" {
   description = "Project name for resource naming"
   type        = string
-  default     = "myapp"
+  # default     = "test"
 }
 
 variable "availability_zones" {
