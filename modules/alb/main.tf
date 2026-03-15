@@ -1,22 +1,28 @@
-# Security Group for ALB
+# ============================================================================
+# Security Group for ALB (allows traffic from internet)
+# ============================================================================
+
 resource "aws_security_group" "alb" {
   name_prefix = "${var.project_name}-alb-"
   vpc_id      = var.vpc_id
+  description = "Security group for Application Load Balancer"
 
-  # Allow inbound HTTP from internet
+  # Allow HTTP from internet
   ingress {
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
+    description = "Allow HTTP from anywhere"
   }
 
-  # Allow inbound HTTPS from internet
+  # Allow HTTPS from internet
   ingress {
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
+    description = "Allow HTTPS from anywhere"
   }
 
   # Allow all outbound
@@ -33,7 +39,10 @@ resource "aws_security_group" "alb" {
   }
 }
 
-# Allow ALB to send traffic to EKS worker nodes
+# ============================================================================
+# Allow ALB to send traffic to EKS worker nodes (NodePort range)
+# ============================================================================
+
 resource "aws_security_group_rule" "alb_to_workers" {
   type                     = "ingress"
   from_port                = 30000
@@ -44,7 +53,10 @@ resource "aws_security_group_rule" "alb_to_workers" {
   description              = "Allow ALB to EKS worker nodes (NodePort range)"
 }
 
+# ============================================================================
 # Application Load Balancer
+# ============================================================================
+
 resource "aws_lb" "main" {
   name_prefix        = substr(replace(var.project_name, "-", ""), 0, 6)
   internal           = false
@@ -60,8 +72,10 @@ resource "aws_lb" "main" {
   }
 }
 
-# Target Group for EKS
-# Routes traffic to Kubernetes Service (NodePort type)
+# ============================================================================
+# Target Group (points to EKS worker nodes)
+# ============================================================================
+
 resource "aws_lb_target_group" "eks" {
   name_prefix = substr(replace(var.project_name, "-", ""), 0, 6)
   port        = 80
@@ -83,7 +97,10 @@ resource "aws_lb_target_group" "eks" {
   }
 }
 
-# Listener: Route HTTP requests to target group
+# ============================================================================
+# ALB Listener (HTTP on port 80)
+# ============================================================================
+
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.main.arn
   port              = 80
@@ -95,18 +112,4 @@ resource "aws_lb_listener" "http" {
   }
 }
 
-# Data source: Get EKS worker node IDs
-data "aws_instances" "eks_workers" {
-  filter {
-    name   = "tag:eks:nodegroup-name"
-    values = ["${var.eks_cluster_name}-node-group"]
-  }
-}
 
-# Register EKS worker nodes with target group
-resource "aws_lb_target_group_attachment" "eks_workers" {
-  for_each         = toset(data.aws_instances.eks_workers.ids)
-  target_group_arn = aws_lb_target_group.eks.arn
-  target_id        = each.value
-  port             = 30000  # NodePort range start
-}

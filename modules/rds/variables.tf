@@ -1,13 +1,14 @@
 variable "db_name" {
   description = "Database name"
   type        = string
-  default     = "appdb"
+  default     = "testdb"
 }
 
 variable "db_username" {
   description = "Database admin username"
   type        = string
   sensitive   = true
+  default     = "postgres"
 }
 
 variable "db_password" {
@@ -17,19 +18,22 @@ variable "db_password" {
 }
 
 variable "environment" {
-  type = string
+  description = "Environment (dev/prod)"
+  type        = string
 }
 
 variable "vpc_id" {
-  type = string
+  description = "VPC ID"
+  type        = string
 }
 
 variable "private_subnet_ids" {
-  type = list(string)
+  description = "Private subnet IDs"
+  type        = list(string)
 }
 
 variable "eks_worker_security_group_id" {
-  description = "Security group ID of EKS worker nodes"
+  description = "EKS worker security group ID"
   type        = string
 }
 
@@ -48,11 +52,12 @@ variable "allocated_storage" {
 variable "engine_version" {
   description = "PostgreSQL version"
   type        = string
-  default     = "15.3"
+  default     = "17.6"
 }
 
 variable "project_name" {
-  type = string
+  description = "Project name"
+  type        = string
 }
 
 variable "multi_az" {

@@ -1,24 +1,29 @@
 variable "project_name" {
-  type = string
+  description = "Project name"
+  type        = string
 }
 
 variable "environment" {
-  type = string
+  description = "Environment (dev/prod)"
+  type        = string
 }
 
 variable "vpc_id" {
-  type = string
+  description = "VPC ID"
+  type        = string
 }
 
 variable "public_subnet_ids" {
-  type = list(string)
+  description = "Public subnet IDs"
+  type        = list(string)
 }
 
 variable "eks_worker_security_group_id" {
-  description = "EKS worker node security group ID"
+  description = "EKS worker security group ID"
   type        = string
 }
 
 variable "eks_cluster_name" {
-  type = string
+  description = "EKS cluster name"
+  type        = string
 }

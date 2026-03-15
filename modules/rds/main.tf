@@ -1,4 +1,7 @@
+# ============================================================================
 # DB Subnet Group (required for RDS in VPC)
+# ============================================================================
+
 resource "aws_db_subnet_group" "main" {
   name       = "${var.project_name}-db-subnet-group"
   subnet_ids = var.private_subnet_ids
@@ -9,22 +12,25 @@ resource "aws_db_subnet_group" "main" {
   }
 }
 
-# Security Group for RDS
-# IMPORTANT: Only allows traffic from EKS worker nodes
+# ============================================================================
+# Security Group for RDS (only allows EKS workers)
+# ============================================================================
+
 resource "aws_security_group" "rds" {
   name_prefix = "${var.project_name}-rds-"
   vpc_id      = var.vpc_id
+  description = "Security group for RDS database"
 
-  # Inbound: Allow PostgreSQL from EKS worker nodes only
+  # IMPORTANT: Only allow PostgreSQL from EKS worker nodes
   ingress {
     from_port       = 5432
     to_port         = 5432
     protocol        = "tcp"
     security_groups = [var.eks_worker_security_group_id]
-    description     = "Allow PostgreSQL from EKS worker nodes"
+    description     = "Allow PostgreSQL from EKS worker nodes only"
   }
 
-  # Outbound: Allow all (for updates, etc.)
+  # Allow all outbound (for updates, etc.)
   egress {
     from_port   = 0
     to_port     = 0
@@ -38,57 +44,58 @@ resource "aws_security_group" "rds" {
   }
 }
 
-# RDS PostgreSQL Instance
+# ============================================================================
+# RDS PostgreSQL Instance (FREE TIER OPTIMIZED)
+# ============================================================================
+
 resource "aws_db_instance" "main" {
   identifier            = "${var.project_name}-db-${var.environment}"
   engine                = "postgres"
   engine_version        = var.engine_version
-  instance_class        = var.instance_class
-  allocated_storage     = var.allocated_storage
+  instance_class        = var.instance_class  # db.t3.micro (free tier)
+  allocated_storage     = var.allocated_storage  # 20 GB (free tier)
   db_name               = var.db_name
   username              = var.db_username
   password              = var.db_password
   db_subnet_group_name  = aws_db_subnet_group.main.name
   vpc_security_group_ids = [aws_security_group.rds.id]
 
-  # IMPORTANT: Disable public accessibility
+  # CRITICAL: NO public access
   publicly_accessible = false
 
-  # Backup settings
-  backup_retention_period = var.environment == "prod" ? 30 : 7
+  # ============================================================================
+  # FREE TIER: Minimal backup (7 days for dev, 7 for prod to save money)
+  # ============================================================================
+  backup_retention_period = 7  # FREE TIER: Keep it at 7 days
   backup_window           = "03:00-04:00"
   maintenance_window      = "mon:04:00-mon:05:00"
+  
+  # FREE TIER: Skip final snapshot to avoid storage charges
+  skip_final_snapshot = true
+  
+  # ============================================================================
+  # FREE TIER: NO encryption (adds cost)
+  # ============================================================================
+  storage_encrypted = false  # FREE TIER: Disable to save money
 
-  # Enable encryption
-  storage_encrypted = true
-  kms_key_id        = aws_kms_key.rds.arn
+  # ============================================================================
+  # FREE TIER: Single-AZ only (multi-AZ charges)
+  # ============================================================================
+  multi_az = false  # FREE TIER: Always false
 
-  # Multi-AZ for HA
-  multi_az = var.multi_az
+  # ============================================================================
+  # FREE TIER: NO performance insights
+  # ============================================================================
+  performance_insights_enabled = false
 
-  # Don't delete data on destroy (important for prod)
-  skip_final_snapshot       = var.environment == "dev" ? true : false
-  final_snapshot_identifier = "${var.project_name}-db-final-snapshot-${formatdate("YYYY-MM-DD-hhmm", timestamp())}"
+  # FREE TIER: Use gp2 instead of gp3 (cheaper)
+  storage_type = "gp2"
 
   tags = {
     Name        = "${var.project_name}-db"
     Environment = var.environment
+    TierType    = "Free"
   }
-}
 
-# KMS Key for RDS encryption
-resource "aws_kms_key" "rds" {
-  description             = "KMS key for RDS encryption"
-  deletion_window_in_days = 10
-  enable_key_rotation     = true
-
-  tags = {
-    Name        = "${var.project_name}-rds-key"
-    Environment = var.environment
-  }
-}
-
-resource "aws_kms_alias" "rds" {
-  name          = "alias/${var.project_name}-rds-${var.environment}"
-  target_key_id = aws_kms_key.rds.key_id
+  depends_on = [aws_security_group.rds]
 }
