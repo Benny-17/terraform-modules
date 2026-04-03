@@ -1,2 +1,2 @@
 rds_username = "postgres"
-rds_password = "DevPassword123!"
+rds_password = "DevPassword123!" //eg:pswd
